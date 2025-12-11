@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:650px;margin:0 auto;">
+  <h2 style="margin:0 0 10px 0;">➕ Add Book (Admin)</h2>
+  <div class="small" style="margin-bottom:12px;">
+    زِد كتاب جديد: العنوان، الكاتب، الوصف، الكود، عدد النسخ، وصورة الغلاف (اختياري).
+  </div>
+
+  <form method="post" action="/admin/books/new" enctype="multipart/form-data">
+    <label>Title</label>
+    <input name="title" placeholder="Book title..." required />
+
+    <label>Author</label>
+    <input name="author" placeholder="Author..." required />
+
+    <label>Description</label>
+    <input name="description" placeholder="Short description..." required />
+
+    <label>Code</label>
+    <input name="code" placeholder="Unique code..." required />
+
+    <label>Copies total</label>
+    <input type="number" name="copies_total" min="1" value="1" required />
+
+    <label>Cover image (upload)</label>
+    <!-- ✅ لازم الاسم يكون image باش يطابق FastAPI: image: UploadFile -->
+    <input name="image" type="file" accept="image/*" />
+
+    <div class="small">
+      إذا ما رفعتيش صورة، غادي يبان placeholder فالموقع.
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+      <button class="btn" type="submit">Add Book</button>
+      <a class="btn2" href="/admin/books">Back</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="margin-bottom:12px;">
+  <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+    <div>
+      <h2 style="margin:0;">My History</h2>
+      <div class="small">Your borrowed / returned books</div>
+    </div>
+    <div class="small">Total: <b>{{ history|length }}</b></div>
+  </div>
+</div>
+
+{% if history|length == 0 %}
+  <div class="card">No history yet.</div>
+{% endif %}
+
+{% for h in history %}
+  <div class="card" style="margin-bottom:10px;">
+    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+
+      <!-- cover -->
+      <img
+        src="{{ h.book_image_url or h.image_url or 'https://via.placeholder.com/120x160?text=Book' }}"
+        alt="cover"
+        style="width:86px;height:118px;object-fit:cover;border-radius:14px;border:1px solid #e5e7eb;background:#e5e7eb;"
+      />
+
+      <div style="flex:1;min-width:220px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+          <div>
+            <div style="font-weight:900;font-size:16px;line-height:1.2;">
+              {{ h.book_title or "Unknown title" }}
+            </div>
+
+            <div class="meta">
+              ✍️ {{ h.book_author or "" }}
+              {% if h.book_code %} | Code: <b>{{ h.book_code }}</b>{% endif %}
+            </div>
+          </div>
+
+          {% if h.status == "borrowed" %}
+            <div class="badge no">📌 borrowed</div>
+          {% else %}
+            <div class="badge ok">✅ returned</div>
+          {% endif %}
+        </div>
+
+        {% if h.book_description %}
+          <div class="small" style="margin-top:6px;line-height:1.35;">
+            {{ h.book_description }}
+          </div>
+        {% endif %}
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+
+          {% if h.borrowed_at %}
+            <div class="small">
+              📅 Borrowed:
+              <b><span data-date="{{ h.borrowed_at }}"></span></b>
+            </div>
+          {% endif %}
+
+          {% if h.status == "borrowed" and h.due_date %}
+            <div class="small">
+              ⏳ Due:
+              <b><span data-date="{{ h.due_date }}"></span></b>
+            </div>
+
+            <div class="small">
+              🕒
+              <b><span data-due="{{ h.due_date }}"></span></b>
+            </div>
+          {% endif %}
+
+          {% if h.returned_at %}
+            <div class="small">
+              ↩️ Returned:
+              <b><span data-date="{{ h.returned_at }}"></span></b>
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+{% endblock %}

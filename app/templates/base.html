@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ title or "Class Library" }}</title>
+  <link rel="stylesheet" href="/static/styles.css?v=999">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+  <a href="/books?filter=all" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+    <img src="/static/logo.png" alt="PIElibrary" style="height:45px;width:auto;display:block;">
+  </a>
+</div>
+
+  <!-- ✅ Mobile-only (يبانو فالهيدر على اليمين) -->
+  <div class="top-links mobile-only">
+    <a href="/faq">FAQ</a>
+    <a href="/about">About</a>
+  </div>
+
+  <div class="navwrap">
+    <button class="burger" id="burgerBtn" type="button" aria-label="Menu" aria-expanded="false">☰</button>
+    <nav class="nav" id="siteNav">
+      <!-- ✅ Desktop-only (يبانو مع المينيو فـ PC) -->
+      <span class="desktop-only">
+        <a href="/faq">FAQ</a>
+        <a href="/about">About</a>
+      </span>
+
+      {% if session %}
+        <a href="/books?filter=all">All Books</a>
+        <a href="/books?filter=available">Available</a>
+        <a href="/books?filter=reserved">Reserved</a>
+        <a href="/books?filter=mine">My Books</a>
+        <a href="/history">History</a>
+        <a href="/logout">Logout</a>
+      {% else %}
+        <a href="/login">Login</a>
+        <a href="/signup">Signup</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+
+
+<main class="container">
+  {% if message %}
+    <div class="flash">{{ message }}</div>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    Powered by <b>JAMAL BENZADOUM</b>
+  </div>
+</footer>
+
+<script src="/static/app.js?v=999"></script>
+</body>
+</html>

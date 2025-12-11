@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="max-width:900px;margin:0 auto;">
+  <h2 style="margin:0 0 8px 0;">FAQ</h2>
+  <div class="small" style="opacity:.8;">أسئلة شائعة على موقع مكتبة القسم</div>
+</div>
+
+<div style="height:12px"></div>
+
+<div class="card" style="max-width:900px;margin:0 auto; direction: rtl; text-align: right;">
+  <details open style="margin-bottom:10px;">
+    <summary style="cursor:pointer;">كيفاش نستعير كتاب؟</summary>
+    <div class="small" style="margin-top:8px;line-height:1.6;">
+      دخل/Login → مشي لـ Books → قلب على الكتاب → ضغط Borrow. منين كتسلفو كيولي Reserved.
+    </div>
+  </details>
+
+  <details style="margin-bottom:10px;">
+    <summary style="cursor:pointer;">علاش مكتوب Reserved وما نقدرش نكليك Borrow؟</summary>
+    <div class="small" style="margin-top:8px;line-height:1.6;">
+      حيث الكتاب راه محجوز من شي واحد آخر. استنى حتى يرجعو، ولا شوف Available.
+    </div>
+  </details>
+
+  <details style="margin-bottom:10px;">
+    <summary style="cursor:pointer;">شحال عندي باش نرجع الكتاب؟</summary>
+    <div class="small" style="margin-top:8px;line-height:1.6;">
+      مدة الاستعارة 30 يوم. فـ My Books كيبان لك “بقات لك X يوم”.
+    </div>
+  </details>
+
+  <details style="margin-bottom:10px;">
+    <summary style="cursor:pointer;">فين نلقى تاريخ الاستعارات ديالي؟</summary>
+    <div class="small" style="margin-top:8px;line-height:1.6;">
+      دخل لـ History وغادي تلقى لائحة الكتب اللي سلفتي واللي رجعتي.
+    </div>
+  </details>
+
+  <details>
+    <summary style="cursor:pointer;">شكون يقدر يزيد كتب؟</summary>
+    <div class="small" style="margin-top:8px;line-height:1.6;">
+      غير Admin. إلا بغيتي تزيد كتاب تواصل مع المسؤول على الخزانة.
+    </div>
+  </details>
+</div>
+
+{% endblock %}

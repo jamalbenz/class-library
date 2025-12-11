@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container">
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;">🛠️ Admin Books</h2>
+      <div class="small" style="opacity:.8;">Add / Delete books</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <a class="btn" href="/admin/books/new">➕ Add book</a>
+      <a class="btn2" href="/books?filter=all">Back to site</a>
+    </div>
+  </div>
+
+  <div style="height:12px"></div>
+
+  <div class="grid">
+    {% for b in books %}
+      <div class="book-card">
+        <img class="cover" src="{{ b.image_url or 'https://via.placeholder.com/400x240?text=Book' }}" alt="cover" />
+        <div class="card-body">
+          <div class="title">{{ b.title }}</div>
+          <div class="meta">✍️ {{ b.author }}</div>
+          <div class="meta">Code: <b>{{ b.code }}</b></div>
+
+          <!-- ✅ copies editor (small input + button visible) -->
+          <form method="post" action="/admin/books/{{ b.id }}/copies" class="admin-copies-row" style="margin-top:8px;">
+            <input type="number" name="copies_total" min="1" value="{{ b.copies_total or 1 }}" required>
+            <button class="btn2" type="submit">Update copies</button>
+          </form>
+
+          <div class="small">Borrowed: {{ b.copies_borrowed or 0 }}</div>
+
+          {% if b.is_reserved %}
+            <div class="badge no">🔒 Reserved</div>
+          {% else %}
+            <div class="badge ok">✅ Available</div>
+          {% endif %}
+
+          <div class="actions" style="margin-top:10px;">
+            <form method="post" action="/admin/books/{{ b.id }}/delete" onsubmit="return confirm('Delete this book?');">
+              <button class="btn2" type="submit">🗑️ Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if books|length == 0 %}
+    <div class="card" style="margin-top:12px;">No books.</div>
+  {% endif %}
+</div>
+
+{% endblock %}

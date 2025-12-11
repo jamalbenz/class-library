@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="card" style="max-width:520px;margin:0 auto;">
+    <h2 style="margin:0 0 10px 0;">🔑 Forgot Password</h2>
+    <div class="small" style="margin-bottom:12px;">
+      دخل الإيميل ديالك وغادي نرسلو ليك رابط باش تبدّل الموط باس.
+    </div>
+
+    {% if message %}
+      <div class="flash">{{ message }}</div>
+    {% endif %}
+
+    <form method="post" action="/forgot" style="display:flex;flex-direction:column;gap:10px;">
+      <label class="small">Email</label>
+      <input type="email" name="email" placeholder="you@example.com" required>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        <button class="btn" type="submit">Send reset link</button>
+        <a class="btn2" href="/login">Back to login</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

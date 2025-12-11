@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="max-width:650px;margin:0 auto;">
+  <h2 style="margin:0 0 10px 0;">🔐 Reset Password</h2>
+  <div class="small" style="margin-bottom:12px;">
+    دخّل كلمة سر جديدة. (خاص الرابط اللي جاك فالإيميل يكون فيه access_token)
+  </div>
+
+  <div id="msg" class="flash" style="display:none;"></div>
+
+  <form id="resetForm">
+    <label>New password</label>
+    <input type="password" id="p1" placeholder="New password..." required minlength="6" />
+
+    <label>Confirm password</label>
+    <input type="password" id="p2" placeholder="Confirm..." required minlength="6" />
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
+      <button class="btn" type="submit">Update password</button>
+      <a class="btn2" href="/login">Go to Login</a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const SUPABASE_URL = "{{ SUPABASE_URL }}";
+  const SUPABASE_ANON_KEY = "{{ SUPABASE_ANON_KEY }}";
+
+  const msg = document.getElementById("msg");
+  const form = document.getElementById("resetForm");
+  const p1 = document.getElementById("p1");
+  const p2 = document.getElementById("p2");
+
+  function show(text) {
+    msg.style.display = "block";
+    msg.textContent = text;
+  }
+
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
+  const params = new URLSearchParams(hash);
+  const access_token = params.get("access_token");
+
+  if (!access_token) {
+    show("❌ ما لقيتش access_token فالرابط. رجّع للإيميل وعاود حل الرابط.");
+    return;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (p1.value !== p2.value) {
+      show("❌ كلمتا السر ماشي بحال بحال.");
+      return;
+    }
+
+    try {
+      const res = await fetch(SUPABASE_URL + "/auth/v1/user", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": "Bearer " + access_token
+        },
+        body: JSON.stringify({ password: p1.value })
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        show("❌ فشل تبديل كلمة السر: " + text);
+        return;
+      }
+
+      show("✅ تبدّلات كلمة السر! دابا سير Login.");
+    } catch (err) {
+      show("❌ مشكل فالاتصال: " + err);
+    }
+  });
+})();
+</script>
+{% endblock %}

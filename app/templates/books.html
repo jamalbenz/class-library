@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="toolbar">
+    <form method="get" action="/books" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <input name="q" placeholder="Search title/author/code..." value="{{ q or '' }}" />
+      <select name="filter">
+        <option value="all" {% if filter == "all" %}selected{% endif %}>All</option>
+        <option value="available" {% if filter == "available" %}selected{% endif %}>Available</option>
+        <option value="reserved" {% if filter == "reserved" %}selected{% endif %}>Reserved</option>
+        <option value="mine" {% if filter == "mine" %}selected{% endif %}>My Books</option>
+      </select>
+      <button class="btn" type="submit">Apply</button>
+    </form>
+
+    <div class="small" style="margin-left:auto;">
+      Logged as: {{ session.email }}
+    </div>
+  </div>
+
+  <div class="grid">
+    {% for b in books %}
+      {% set total = (b.copies_total or 1) %}
+      {% set borrowed = (b.copies_borrowed or 0) %}
+      {% set available = (b.available_copies if b.available_copies is not none else (total - borrowed)) %}
+
+      <div class="book-card">
+        <img class="cover"
+             src="{{ b.image_url or 'https://via.placeholder.com/400x240?text=Book' }}"
+             alt="cover" />
+
+        <div class="card-body">
+          <div class="title">{{ b.title }}</div>
+          <div class="meta">✍️ {{ b.author }}</div>
+          <div class="desc">{{ b.description }}</div>
+          <div class="meta">Code: <b>{{ b.code }}</b></div>
+
+          <!-- ✅ Copies info -->
+          <div class="small">
+            Copies: <b>{{ total }}</b> | Available: <b>{{ available }}</b>
+          </div>
+
+          <!-- ⭐ Rating -->
+          <div class="rating-line">
+            <div class="rating-mini" data-rate-wrap>
+              {% if b.my_rating %}
+                <button type="button" class="rate-btn" disabled title="You already rated this book">
+                  ⭐ Rated ({{ b.my_rating }}/5)
+                </button>
+              {% else %}
+                <button type="button" class="rate-btn" data-rate-open aria-haspopup="dialog" aria-expanded="false">
+                  ⭐ Rate
+                </button>
+
+                <div class="rate-pop" data-rate-pop hidden>
+                  <div class="rate-pop-title">قيّم هاد الكتاب</div>
+
+                  <form method="post" action="/rate/{{ b.id }}" class="rate-form" data-rate-form>
+                    <div class="star-pick" data-star-pick>
+                      <input type="hidden" name="rating" value="0" required data-rate-value>
+
+                      <button type="button" class="s" data-star="1" aria-label="1 star">★</button>
+                      <button type="button" class="s" data-star="2" aria-label="2 stars">★</button>
+                      <button type="button" class="s" data-star="3" aria-label="3 stars">★</button>
+                      <button type="button" class="s" data-star="4" aria-label="4 stars">★</button>
+                      <button type="button" class="s" data-star="5" aria-label="5 stars">★</button>
+                    </div>
+
+                    <div class="rate-actions">
+                      <button type="button" class="btn2 rate-cancel" data-rate-cancel>Cancel</button>
+                      <button class="btn rate-ok" type="submit" disabled data-rate-ok>OK</button>
+                    </div>
+                  </form>
+                </div>
+              {% endif %}
+            </div>
+
+            {% set avg = (b.rating_avg or 0) %}
+            {% set cnt = (b.rating_count or 0) %}
+            <div class="rating-current" title="Average rating">
+              <span class="stars-mini" aria-hidden="true">
+                {% for i in range(1,6) %}
+                  <span class="st {% if i <= avg|round(0,'floor') %}on{% endif %}">★</span>
+                {% endfor %}
+              </span>
+              <span class="small">{{ "%.1f"|format(avg) }} ({{ cnt }})</span>
+            </div>
+          </div>
+
+          <!-- ✅ Borrow / Return logic with copies -->
+          {% if b.my_borrowed %}
+            <div class="badge no">📌 Borrowed by me</div>
+
+            {% if b.my_due_date %}
+              <div class="small">⏳ Due date: <span data-date="{{ b.my_due_date }}"></span></div>
+              <div class="small">⌛ Time left: <span data-due="{{ b.my_due_date }}"></span></div>
+            {% endif %}
+
+            <div class="actions">
+              <form method="post" action="/return/{{ b.id }}">
+                <button class="btn2" type="submit">Return</button>
+              </form>
+            </div>
+
+          {% else %}
+            {% if available > 0 %}
+              <div class="badge ok">✅ Available</div>
+              <div class="actions">
+                <form method="post" action="/borrow/{{ b.id }}">
+                  <button class="btn" type="submit">Borrow</button>
+                </form>
+              </div>
+            {% else %}
+              <div class="badge no">🔒 Full</div>
+              <div class="small">No copies left</div>
+              <div class="actions">
+                <button class="btn" disabled style="opacity:.55;cursor:not-allowed;">No copies left</button>
+              </div>
+            {% endif %}
+          {% endif %}
+
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if books|length == 0 %}
+    <div class="card" style="margin-top:12px;">No books found.</div>
+  {% endif %}
+</div>
+{% endblock %}
