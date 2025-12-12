@@ -542,8 +542,10 @@ async def reset_page(request: Request):
 from fastapi.responses import PlainTextResponse
 
 @app.get("/healthz", response_class=PlainTextResponse)
+@app.head("/healthz")
 async def healthz():
     return "ok"
+
 
 # =========================
 # Debug
