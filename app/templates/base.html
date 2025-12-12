@@ -61,5 +61,33 @@
 </footer>
 
 <script src="/static/app.js?v=999"></script>
+<script>
+(function () {
+  // Supabase كيحط access_token فـ #hash ماشي فـ query
+  const hash = window.location.hash || "";
+  if (!hash) return;
+
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const type = params.get("type"); // recovery / signup / magiclink ...
+
+  // ✅ إذا الرابط ديال reset password جاك فـ /login أو / (ولا أي صفحة)
+  // غادي نديه أوتوماتيك لـ /reset مع نفس #access_token...
+  if (type === "recovery") {
+    if (!window.location.pathname.startsWith("/reset")) {
+      window.location.replace("/reset" + hash);
+    }
+    return;
+  }
+
+  // (اختياري) إذا جاك signup/magiclink فـ / (كيبان Welcome)
+  // ردّو لـ /login باش يبقى سهل
+  if (type === "signup" || type === "magiclink") {
+    if (!window.location.pathname.startsWith("/login")) {
+      window.location.replace("/login" + hash);
+    }
+  }
+})();
+</script>
+
 </body>
 </html>
