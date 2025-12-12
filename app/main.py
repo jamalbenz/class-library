@@ -154,14 +154,32 @@ async def forgot_send(request: Request, email: str = Form(...)):
     return RedirectResponse("/forgot?msg=sent", status_code=303)
 
 
-@app.get("/reset", response_class=HTMLResponse)
-async def reset_page(request: Request):
-    # هاد الصفحة فيها FORM + JS (غادي نعطيك reset.html)
-    return templates.TemplateResponse(
-        "reset.html",
-        {"request": request, "title": "Reset Password", "session": None},
+@app.post("/forgot")
+async def forgot_send(request: Request, email: str = Form(...)):
+    # base_url كتعطيك الدومين اللي خدام عليه:
+    #   - local:  http://127.0.0.1:8000
+    #   - online: https://YOUR-APP.onrender.com
+    base = str(request.base_url).rstrip("/")
+
+    redirect_url = f"{base}/reset"   # هنا الفرق: بغينا /reset غير للـ recover
+
+    r = await sb_post(
+        "/auth/v1/recover",
+        json={
+            "email": email,
+            "redirect_to": redirect_url,
+        },
     )
 
+    # باش تعاين فـ اللوغز إلا وقع مشكل
+    print("FORGOT REDIRECT:", redirect_url)
+    print("FORGOT STATUS:", r.status_code)
+    print("FORGOT BODY:", r.text)
+
+    if r.status_code >= 400:
+        return RedirectResponse("/forgot?msg=error", status_code=303)
+
+    return RedirectResponse("/forgot?msg=sent", status_code=303)
 
 # =========================
 # Books (list)
