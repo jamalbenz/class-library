@@ -539,6 +539,11 @@ async def reset_page(request: Request):
     return templates.TemplateResponse("reset.html", {
         "request": request, "title": "Reset Password", "session": None
     })
+from fastapi.responses import PlainTextResponse
+
+@app.get("/healthz", response_class=PlainTextResponse)
+async def healthz():
+    return "ok"
 
 # =========================
 # Debug
