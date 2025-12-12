@@ -140,25 +140,12 @@ async def forgot_page(request: Request):
     )
 
 
-@app.post("/forgot")
-async def forgot_send(request: Request, email: str = Form(...)):
-    r = await sb_post(
-        "/auth/v1/recover",
-        json={
-            "email": email,
-            "redirect_to": "http://127.0.0.1:8000/reset"
-        },
-    )
-    if r.status_code >= 400:
-        return RedirectResponse("/forgot?msg=error", status_code=303)
-    return RedirectResponse("/forgot?msg=sent", status_code=303)
-
 
 @app.post("/forgot")
 async def forgot_send(request: Request, email: str = Form(...)):
     # base_url كتعطيك الدومين اللي خدام عليه:
     #   - local:  http://127.0.0.1:8000
-    #   - online: https://YOUR-APP.onrender.com
+    #   - online: https://class-library.onrender.com
     base = str(request.base_url).rstrip("/")
 
     redirect_url = f"{base}/reset"   # هنا الفرق: بغينا /reset غير للـ recover
