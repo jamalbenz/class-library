@@ -100,15 +100,26 @@
               <form method="post" action="/return/{{ b.id }}">
                 <button class="btn2" type="submit">Return</button>
               </form>
+
             </div>
 
           {% else %}
-            {% if available > 0 %}
+            {% if not approved %}
+              <div class="badge no">⏳ Waiting admin approval</div>
+              <div class="small">مازال خاص Admin يقبل الحساب ديالك باش تقدر تسلف.</div>
+              <div class="actions">
+                <button class="btn" disabled style="opacity:.55;cursor:not-allowed;">📌 Borrow</button>
+              </div>
+            {% elif available > 0 %}
+
               <div class="badge ok">✅ Available</div>
               <div class="actions">
                 <form method="post" action="/borrow/{{ b.id }}">
-                  <button class="btn" type="submit">Borrow</button>
+                  <button class="btn" type="submit" {% if b.available_copies == 0 %}disabled{% endif %}>
+                     Borrow
+                  </button>
                 </form>
+
               </div>
             {% else %}
               <div class="badge no">🔒 Full</div>

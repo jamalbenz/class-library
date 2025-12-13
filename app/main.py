@@ -35,6 +35,17 @@ async def is_admin(sess: dict) -> bool:
     return (sess.get("email") or "").lower() in {e.lower() for e in ADMIN_EMAILS}
 
 
+# ✅ approval stored in user_profiles.is_approved
+async def get_my_approval(sess: dict) -> bool:
+    r = await sb_get(
+        f"/rest/v1/user_profiles?select=is_approved&user_id=eq.{sess['user_id']}&limit=1",
+        access_token=sess["access_token"],
+    )
+    if r.status_code >= 400 or not r.json():
+        return False
+    return bool(r.json()[0].get("is_approved"))
+
+
 # =========================
 # Home
 # =========================
@@ -80,6 +91,23 @@ async def signup(full_name: str = Form(...), email: str = Form(...), password: s
         session["user"]["id"],
         session["user"].get("email") or email,
     )
+
+    # ✅ create profile (approved=false) - ignore errors if exists
+    try:
+        await sb_post(
+            "/rest/v1/user_profiles",
+            json={
+                "user_id": session["user"]["id"],
+                "email": session["user"].get("email") or email,
+                "full_name": full_name,
+                "is_approved": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            access_token=session["access_token"],
+        )
+    except Exception:
+        pass
+
     return resp
 
 
@@ -95,7 +123,10 @@ async def login_page(request: Request):
     if request.query_params.get("error") == "1":
         message = "Login failed. Check email/password."
 
-    return templates.TemplateResponse("login.html", {"request": request, "title": "Login", "session": None, "message": message})
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "title": "Login", "session": None, "message": message},
+    )
 
 
 @app.post("/login")
@@ -105,8 +136,34 @@ async def login(email: str = Form(...), password: str = Form(...)):
         return RedirectResponse("/login?error=1", status_code=303)
 
     data = r.json()
+
     resp = RedirectResponse("/books?filter=all", status_code=303)
-    set_session_cookie(resp, data["access_token"], data["refresh_token"], data["user"]["id"], data["user"].get("email") or email)
+    set_session_cookie(
+        resp,
+        data["access_token"],
+        data["refresh_token"],
+        data["user"]["id"],
+        data["user"].get("email") or email,
+    )
+
+    # ✅ ensure profile exists
+    pr = await sb_get(
+        f"/rest/v1/user_profiles?select=user_id&user_id=eq.{data['user']['id']}&limit=1",
+        access_token=data["access_token"],
+    )
+    if pr.status_code < 400 and not pr.json():
+        await sb_post(
+            "/rest/v1/user_profiles",
+            json={
+                "user_id": data["user"]["id"],
+                "email": data["user"].get("email") or email,
+                "full_name": (data["user"].get("user_metadata") or {}).get("full_name") or "",
+                "is_approved": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            access_token=data["access_token"],
+        )
+
     return resp
 
 
@@ -116,8 +173,7 @@ async def logout():
     clear_session_cookie(resp)
     return resp
 
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi import Request, Form
+
 # =========================
 # Forgot / Reset Password
 # =========================
@@ -140,25 +196,18 @@ async def forgot_page(request: Request):
     )
 
 
-
 @app.post("/forgot")
 async def forgot_send(request: Request, email: str = Form(...)):
-    # base_url كتعطيك الدومين اللي خدام عليه:
-    #   - local:  http://127.0.0.1:8000
-    #   - online: https://class-library.onrender.com
+    # local:  http://127.0.0.1:8000
+    # online: https://class-library.onrender.com
     base = str(request.base_url).rstrip("/")
-
-    redirect_url = f"{base}/reset"   # هنا الفرق: بغينا /reset غير للـ recover
+    redirect_url = f"{base}/reset"
 
     r = await sb_post(
         "/auth/v1/recover",
-        json={
-            "email": email,
-            "redirect_to": redirect_url,
-        },
+        json={"email": email, "redirect_to": redirect_url},
     )
 
-    # باش تعاين فـ اللوغز إلا وقع مشكل
     print("FORGOT REDIRECT:", redirect_url)
     print("FORGOT STATUS:", r.status_code)
     print("FORGOT BODY:", r.text)
@@ -167,6 +216,15 @@ async def forgot_send(request: Request, email: str = Form(...)):
         return RedirectResponse("/forgot?msg=error", status_code=303)
 
     return RedirectResponse("/forgot?msg=sent", status_code=303)
+
+
+@app.get("/reset", response_class=HTMLResponse)
+async def reset_page(request: Request):
+    return templates.TemplateResponse(
+        "reset.html",
+        {"request": request, "title": "Reset Password", "session": None},
+    )
+
 
 # =========================
 # Books (list)
@@ -177,11 +235,13 @@ async def books_page(request: Request):
     if not sess:
         return RedirectResponse("/login", status_code=303)
 
+    approved = await get_my_approval(sess)
+
     # 1) books
     r = await sb_get(
         "/rest/v1/books_with_ratings?select=*&order=created_at.desc",
         access_token=sess["access_token"],
-)
+    )
     books = r.json() if r.status_code < 400 else []
 
     # 2) my ratings
@@ -242,6 +302,8 @@ async def books_page(request: Request):
         message = "❌ وقع مشكل فالتقييم. عاود جرّب."
     elif msg == "not_admin":
         message = "⚠️ ماعندكش صلاحية Admin."
+    elif msg == "await_approval":
+        message = "⏳ خاص Admin يقبل الحساب ديالك باش تولّي تقدر تدير Borrow."
 
     if q:
         def match(book):
@@ -258,7 +320,16 @@ async def books_page(request: Request):
 
     return templates.TemplateResponse(
         "books.html",
-        {"request": request, "title": "Books", "session": sess, "books": books, "q": q, "filter": filter_mode, "message": message},
+        {
+            "request": request,
+            "title": "Books",
+            "session": sess,
+            "books": books,
+            "q": q,
+            "filter": filter_mode,
+            "message": message,
+            "approved": approved,
+        },
     )
 
 
@@ -270,6 +341,10 @@ async def borrow_book(request: Request, book_id: int):
     sess = require_session(request)
     if not sess:
         return RedirectResponse("/login", status_code=303)
+
+    approved = await get_my_approval(sess)
+    if not approved:
+        return RedirectResponse("/books?filter=all&msg=await_approval", status_code=303)
 
     r = await sb_post(
         "/rest/v1/rpc/borrow_copy",
@@ -307,6 +382,16 @@ async def return_book(request: Request, book_id: int):
     return RedirectResponse("/books?filter=all&msg=returned", status_code=303)
 
 
+# (optional safety) avoid GET calling borrow/return
+@app.get("/borrow/{book_id}")
+async def borrow_get(book_id: int):
+    return RedirectResponse("/books?filter=all", status_code=303)
+
+@app.get("/return/{book_id}")
+async def return_get(book_id: int):
+    return RedirectResponse("/books?filter=all", status_code=303)
+
+
 # =========================
 # History
 # =========================
@@ -322,7 +407,10 @@ async def history_page(request: Request):
     )
     history = r.json() if r.status_code < 400 else []
 
-    return templates.TemplateResponse("history.html", {"request": request, "title": "My History", "session": sess, "history": history})
+    return templates.TemplateResponse(
+        "history.html",
+        {"request": request, "title": "My History", "session": sess, "history": history},
+    )
 
 
 # =========================
@@ -339,7 +427,6 @@ async def rate_book(request: Request, book_id: int, rating: int = Form(...)):
 
     if r.status_code >= 400:
         txt = (r.text or "").lower()
-        # duplicate / unique violation
         if "duplicate" in txt or "unique" in txt:
             return RedirectResponse("/books?msg=already_rated", status_code=303)
         return RedirectResponse("/books?msg=rate_error", status_code=303)
@@ -365,7 +452,10 @@ async def admin_add_book_page(request: Request):
     elif msg == "created":
         message = "✅ Book added."
 
-    return templates.TemplateResponse("admin_add_book.html", {"request": request, "title": "Add Book", "session": sess, "message": message})
+    return templates.TemplateResponse(
+        "admin_add_book.html",
+        {"request": request, "title": "Add Book", "session": sess, "message": message},
+    )
 
 
 # =========================
@@ -459,8 +549,27 @@ async def admin_books(request: Request):
     elif msg == "copies_too_low":
         message = "⚠️ copies_total ما يقدرش يكون أقل من copies_borrowed."
 
-    return templates.TemplateResponse("admin_books.html", {"request": request, "title": "Admin Books", "session": sess, "books": books, "message": message})
+    return templates.TemplateResponse(
+        "admin_books.html",
+        {"request": request, "title": "Admin Books", "session": sess, "books": books, "message": message},
+    )
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    sess = require_session(request)
+    if not sess:
+        return RedirectResponse("/login", status_code=303)
+    if not await is_admin(sess):
+        return RedirectResponse("/books?msg=not_admin", status_code=303)
+
+    return templates.TemplateResponse(
+        "admin_dashboard.html",
+        {
+            "request": request,
+            "title": "Admin Dashboard",
+            "session": sess,
+        },
+    )
 
 # =========================
 # Admin - Update copies_total
@@ -473,7 +582,10 @@ async def admin_update_copies(request: Request, book_id: int, copies_total: int 
     if not await is_admin(sess):
         return RedirectResponse("/books?filter=all&msg=not_admin", status_code=303)
 
-    br = await sb_get(f"/rest/v1/books?select=copies_borrowed&id=eq.{book_id}&limit=1", access_token=sess["access_token"])
+    br = await sb_get(
+        f"/rest/v1/books?select=copies_borrowed&id=eq.{book_id}&limit=1",
+        access_token=sess["access_token"],
+    )
     if br.status_code >= 400 or not br.json():
         return RedirectResponse("/admin/books?msg=update_error", status_code=303)
 
@@ -505,7 +617,10 @@ async def admin_delete_book(request: Request, book_id: int):
     if not await is_admin(sess):
         return RedirectResponse("/books?filter=all&msg=not_admin", status_code=303)
 
-    br = await sb_get(f"/rest/v1/books?select=copies_borrowed&id=eq.{book_id}&limit=1", access_token=sess["access_token"])
+    br = await sb_get(
+        f"/rest/v1/books?select=copies_borrowed&id=eq.{book_id}&limit=1",
+        access_token=sess["access_token"],
+    )
     if br.status_code >= 400 or not br.json():
         return RedirectResponse("/admin/books?msg=delete_error", status_code=303)
 
@@ -520,27 +635,76 @@ async def admin_delete_book(request: Request, book_id: int):
 
 
 # =========================
+# Admin - Users approval
+# =========================
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users_page(request: Request):
+    sess = require_session(request)
+    if not sess:
+        return RedirectResponse("/login", status_code=303)
+    if not await is_admin(sess):
+        return RedirectResponse("/books?filter=all&msg=not_admin", status_code=303)
+
+    r = await sb_get(
+        "/rest/v1/user_profiles?select=*&order=created_at.desc",
+        access_token=sess["access_token"],
+    )
+    users = r.json() if r.status_code < 400 else []
+
+    return templates.TemplateResponse(
+        "admin_users.html",
+        {"request": request, "title": "Users", "session": sess, "users": users},
+    )
+
+
+@app.post("/admin/users/{user_id}/approve")
+async def admin_approve_user(request: Request, user_id: str):
+    sess = require_session(request)
+    if not sess:
+        return RedirectResponse("/login", status_code=303)
+    if not await is_admin(sess):
+        return RedirectResponse("/books?filter=all&msg=not_admin", status_code=303)
+
+    await sb_patch(
+        f"/rest/v1/user_profiles?user_id=eq.{user_id}",
+        json={"is_approved": True, "approved_at": datetime.now(timezone.utc).isoformat()},
+        access_token=sess["access_token"],
+    )
+    return RedirectResponse("/admin/users", status_code=303)
+@app.post("/admin/users/{user_id}/unapprove")
+async def admin_unapprove_user(request: Request, user_id: str):
+    sess = require_session(request)
+    if not sess:
+        return RedirectResponse("/login", status_code=303)
+    if not await is_admin(sess):
+        return RedirectResponse("/books?filter=all&msg=not_admin", status_code=303)
+
+    await sb_patch(
+        f"/rest/v1/user_profiles?user_id=eq.{user_id}",
+        json={"is_approved": False, "approved_at": None},
+        access_token=sess["access_token"],
+    )
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+# =========================
 # FAQ / About
 # =========================
 @app.get("/faq", response_class=HTMLResponse)
 async def faq_page(request: Request):
-    sess = require_session(request)  # يقدر يتشاف حتى بلا login
+    sess = require_session(request)
     return templates.TemplateResponse("faq.html", {"request": request, "title": "FAQ", "session": sess})
 
 
 @app.get("/about", response_class=HTMLResponse)
 async def about_page(request: Request):
-    sess = require_session(request)  # يقدر يتشاف حتى بلا login
+    sess = require_session(request)
     return templates.TemplateResponse("about.html", {"request": request, "title": "About", "session": sess})
 
-@app.get("/reset", response_class=HTMLResponse)
-async def reset_page(request: Request):
-    # هاد الصفحة غير كتشرح للمستخدم شنو يدير
-    return templates.TemplateResponse("reset.html", {
-        "request": request, "title": "Reset Password", "session": None
-    })
-from fastapi.responses import PlainTextResponse
 
+# =========================
+# Health (UpTimeRobot)
+# =========================
 @app.get("/healthz", response_class=PlainTextResponse)
 @app.head("/healthz")
 async def healthz():
@@ -564,5 +728,8 @@ async def debug_last_book(request: Request):
     sess = require_session(request)
     if not sess:
         return "NO SESSION"
-    r = await sb_get("/rest/v1/books?select=id,title,image_url&order=created_at.desc&limit=1", access_token=sess["access_token"])
+    r = await sb_get(
+        "/rest/v1/books?select=id,title,image_url&order=created_at.desc&limit=1",
+        access_token=sess["access_token"],
+    )
     return f"status={r.status_code}\n{r.text}"

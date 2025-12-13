@@ -24,6 +24,10 @@
   <div class="navwrap">
     <button class="burger" id="burgerBtn" type="button" aria-label="Menu" aria-expanded="false">☰</button>
     <nav class="nav" id="siteNav">
+      {% if session and session.email == "benzjamal45@gmail.com" %}
+  <a href="/admin">Admin</a>
+{% endif %}
+
       <!-- ✅ Desktop-only (يبانو مع المينيو فـ PC) -->
       <span class="desktop-only">
         <a href="/faq">FAQ</a>

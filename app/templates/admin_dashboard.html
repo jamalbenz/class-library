@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container" style="max-width:900px;margin:0 auto;">
+
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0;">🛠️ Admin Dashboard</h2>
+      <div class="small" style="opacity:.8;">
+        إدارة الكتب، المستخدمين، والموقع
+      </div>
+    </div>
+
+    <div class="small">
+      Logged as: <b>{{ session.email }}</b>
+    </div>
+  </div>
+
+  <div style="height:16px"></div>
+
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+
+    <a href="/admin/books/new" class="card hover">
+      <h3>➕ Add Book</h3>
+      <div class="small">إضافة كتاب جديد</div>
+    </a>
+
+    <a href="/admin/books" class="card hover">
+      <h3>📚 Manage Books</h3>
+      <div class="small">تعديل / حذف / نسخ الكتب</div>
+    </a>
+
+    <a href="/admin/users" class="card hover">
+      <h3>👥 Manage Users</h3>
+      <div class="small">قبول / إلغاء قبول المستخدمين</div>
+    </a>
+
+    <a href="/books" class="card hover">
+      <h3>🌐 Back to Site</h3>
+      <div class="small">الرجوع للموقع</div>
+    </a>
+
+  </div>
+</div>
+
+<style>
+  .hover { cursor:pointer; transition:.2s }
+  .hover:hover { transform:translateY(-3px); box-shadow:0 10px 25px rgba(0,0,0,.25) }
+</style>
+
+{% endblock %}
